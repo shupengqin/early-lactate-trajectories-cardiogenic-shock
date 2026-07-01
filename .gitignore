@@ -1,0 +1,15 @@
+outputs/
+manuscript_tables/
+manuscript_figures/
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.xlsx
+*.db
+*.sqlite
+*.dump
+*.backup
+__pycache__/
+*.pyc
+.env
