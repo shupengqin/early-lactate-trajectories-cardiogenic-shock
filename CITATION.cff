@@ -1,0 +1,22 @@
+﻿cff-version: 1.2.0
+title: "Early lactate trajectories in cardiogenic shock"
+message: "If you use this code, please cite the associated manuscript."
+type: software
+authors:
+  - family-names: Xu
+    given-names: Xiaoye
+  - family-names: Zhou
+    given-names: Huili
+  - family-names: Wang
+    given-names: Ping
+  - family-names: Ying
+    given-names: Fei
+  - family-names: Liu
+    given-names: Zhao
+  - family-names: Shu
+    given-names: Pengqin
+license: MIT
+repository-code: "https://github.com/shupengqin/early-lactate-trajectories-cardiogenic-shock"
+version: 1.0.0
+date-released: 2026-07-01
+
