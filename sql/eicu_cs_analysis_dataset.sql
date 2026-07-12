@@ -30,16 +30,17 @@ vent AS (
     GROUP BY patientunitstayid
 ),
 apache AS (
-    SELECT DISTINCT ON (patientunitstayid)
+    SELECT
         patientunitstayid,
         acutephysiologyscore,
         apachescore,
+        apacheversion,
         predictedhospitalmortality,
         actualhospitalmortality,
         actualicumortality,
         actualventdays
     FROM apachepatientresult
-    ORDER BY patientunitstayid, apachepatientresultsid
+    WHERE apacheversion = 'IVa'
 ),
 vaso AS (
     SELECT
@@ -72,6 +73,7 @@ SELECT
     b.hospital_expire_flag,
     b.unit_expire_flag,
     b.unitdischargeoffset,
+    b.hospitaldischargeoffset,
 
     b.lactate_n_24h,
     b.initial_lactate_24h,
@@ -85,6 +87,7 @@ SELECT
 
     a.acutephysiologyscore,
     a.apachescore,
+    a.apacheversion,
     a.predictedhospitalmortality,
     a.actualhospitalmortality,
     a.actualicumortality,
@@ -122,4 +125,3 @@ SELECT
     SUM(COALESCE(vent, 0))::int AS vent_n,
     SUM(vasoactive_24h)::int AS vasoactive_n
 FROM public.cs_lactate_analysis_dataset;
-

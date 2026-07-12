@@ -122,7 +122,7 @@ def main():
     long_df = pd.read_csv(LONG_PATH)
     analysis_df = pd.read_csv(ANALYSIS_PATH)
     scenarios = []
-    for k in [3, 5]:
+    for k in [2, 3, 5]:
         scenarios.append(run_scenario(long_df, analysis_df, k=k, min_count=2))
     scenarios.append(run_scenario(long_df, analysis_df, k=4, min_count=3))
     with open(OUT_DIR / "mimic_trajectory_sensitivity_results.json", "w", encoding="utf-8") as handle:

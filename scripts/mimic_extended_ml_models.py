@@ -11,15 +11,19 @@ from sklearn.ensemble import (
     RandomForestClassifier,
 )
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, brier_score_loss, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from prediction_utils import logistic_calibration_metrics, restrict_to_24h_survivors
+
 
 INPUT = Path("outputs/mimic_analysis_dataset_with_trajectory.csv")
+COHORT = Path("outputs/mimic_cs_lactate_24h_cohort.csv")
 OUT_DIR = Path("outputs")
+TABLE_DIR = Path("manuscript_tables")
 
 
 BASE_FEATURES = [
@@ -40,17 +44,6 @@ FULL_LACTATE_FEATURES = [
     "lactate_clearance_24h",
     "trajectory_group",
 ]
-
-
-def calibration_metrics(y_true, y_prob):
-    eps = 1e-6
-    p = np.clip(y_prob, eps, 1 - eps)
-    logit = np.log(p / (1 - p)).reshape(-1, 1)
-    lr = LinearRegression().fit(logit, y_true)
-    return {
-        "calibration_intercept": float(lr.intercept_),
-        "calibration_slope": float(lr.coef_[0]),
-    }
 
 
 def make_preprocessor(features, scale_numeric=True):
@@ -98,13 +91,14 @@ def evaluate(df, model_name, estimator, features, scale_numeric):
         "auprc": float(average_precision_score(y, prob)),
         "brier": float(brier_score_loss(y, prob)),
     }
-    out.update(calibration_metrics(y, prob))
+    out.update(logistic_calibration_metrics(y, prob))
     return out, prob
 
 
 def main():
     OUT_DIR.mkdir(exist_ok=True)
-    df = pd.read_csv(INPUT)
+    TABLE_DIR.mkdir(exist_ok=True)
+    df = restrict_to_24h_survivors(pd.read_csv(INPUT), COHORT)
     features = BASE_FEATURES + FULL_LACTATE_FEATURES
 
     specs = [
@@ -170,6 +164,7 @@ def main():
 
     results_df = pd.DataFrame(results).sort_values("auroc", ascending=False)
     results_df.to_csv(OUT_DIR / "mimic_extended_ml_model_metrics.csv", index=False)
+    results_df.to_csv(TABLE_DIR / "table_extended_ml_performance.csv", index=False)
     predictions.to_csv(OUT_DIR / "mimic_extended_ml_predictions.csv", index=False)
 
     output = {

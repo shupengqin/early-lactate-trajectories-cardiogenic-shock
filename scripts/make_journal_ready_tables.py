@@ -185,6 +185,24 @@ def make_other_tables():
     })
     reg_out.to_csv(OUT / 'table3_adjusted_or_journal.csv', index=False)
 
+    eicu_landmark = pd.read_csv(OUT / 'table_primary_24h_landmark_associations.csv')
+    eicu_landmark = eicu_landmark[eicu_landmark['cohort'].eq('eICU-CRD')].copy()
+    table5 = pd.DataFrame({
+        'Group': eicu_landmark['trajectory_group'].map(lambda x: f'Group {int(x)}'),
+        'N at 24-hour landmark': eicu_landmark['n'].astype(int),
+        'Subsequent deaths': eicu_landmark['deaths'].astype(int),
+        'Subsequent mortality, %': eicu_landmark['mortality_pct'].map(lambda x: f'{x:.2f}'),
+        'Adjusted OR (95% CI)': eicu_landmark.apply(
+            lambda r: 'Reference' if int(r['trajectory_group']) == 1
+            else f"{r['adjusted_or']:.2f} ({r['ci95_low']:.2f}-{r['ci95_high']:.2f})",
+            axis=1,
+        ),
+        'P value': eicu_landmark.apply(
+            lambda r: '' if int(r['trajectory_group']) == 1 else fmt_p(r['p_value']), axis=1
+        ),
+    })
+    table5.to_csv(OUT / 'table5_eicu_24h_landmark_validation_journal.csv', index=False)
+
     pred = pd.read_csv(OUT / 'table_prediction_performance.csv')
     labels = {
         'logistic_clinical_base': 'Clinical base model',

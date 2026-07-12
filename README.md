@@ -1,4 +1,4 @@
-﻿# Early lactate trajectories in cardiogenic shock
+# Early lactate trajectories in cardiogenic shock
 
 This repository contains the SQL and Python analysis code for the manuscript:
 
@@ -44,16 +44,15 @@ pip install -r requirements.txt
 1. Load MIMIC-IV and eICU-CRD locally according to PhysioNet documentation.
 2. Update database connection parameters and file paths for the local environment.
 3. Run the SQL scripts in `sql/` to create cohort and lactate extraction tables.
-4. Run the Python scripts in `scripts/` following the protocol in `docs/mimic_cardiogenic_shock_lactate_protocol.md`.
+4. Run the cohort and trajectory scripts first, followed by prediction, sensitivity, external-validation, and output-generation scripts.
 5. Keep generated patient-level intermediate files under the applicable PhysioNet data use agreements.
 
-## Citation
+The primary association and prediction analyses use a 24-hour landmark and include patients alive and still hospitalized at that time. Preprocessing is fitted within each cross-validation training fold. eICU-CRD models explicitly use APACHE IVa and hospital-clustered standard errors.
 
-Repository URL: https://github.com/shupengqin/early-lactate-trajectories-cardiogenic-shock
+## Citation
 
 Please cite the associated manuscript when using this code.
 
 ## License
 
 The code is released under the MIT License. This license applies only to the analysis code, not to MIMIC-IV, eICU-CRD, or other third-party datasets.
-

@@ -63,28 +63,20 @@ def table_eicu_validation():
 
 
 def table_regression():
-    with open(OUT_DIR / "mimic_lactate_trajectory_results.json", "r", encoding="utf-8") as handle:
-        mimic = json.load(handle)
-    with open(OUT_DIR / "eicu_external_validation_results.json", "r", encoding="utf-8") as handle:
-        eicu = json.load(handle)
-
+    primary = pd.read_csv(TABLE_DIR / "table_primary_24h_landmark_associations.csv")
     rows = []
-    for term, label in [
-        ("traj_2", "Trajectory group 2 vs 1"),
-        ("traj_3", "Trajectory group 3 vs 1"),
-        ("traj_4", "Trajectory group 4 vs 1"),
-    ]:
-        m = mimic["adjusted_logistic_trajectory"]["terms"].get(term)
-        e = eicu["adjusted_logistic_trajectory_apache"]["terms"].get(term)
+    for group in [2, 3, 4]:
+        m = primary[(primary["cohort"] == "MIMIC-IV") & (primary["trajectory_group"] == group)].iloc[0]
+        e = primary[(primary["cohort"] == "eICU-CRD") & (primary["trajectory_group"] == group)].iloc[0]
         rows.append(
             {
-                "comparison": label,
-                "mimic_or": m["or"],
+                "comparison": f"Trajectory group {group} vs 1",
+                "mimic_or": m["adjusted_or"],
                 "mimic_ci95": f"{m['ci95_low']:.2f}-{m['ci95_high']:.2f}",
-                "mimic_p": m["p"],
-                "eicu_or": e["or"],
+                "mimic_p": m["p_value"],
+                "eicu_or": e["adjusted_or"],
                 "eicu_ci95": f"{e['ci95_low']:.2f}-{e['ci95_high']:.2f}",
-                "eicu_p": e["p"],
+                "eicu_p": e["p_value"],
             }
         )
     out = pd.DataFrame(rows)

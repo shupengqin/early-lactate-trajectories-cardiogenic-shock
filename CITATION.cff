@@ -1,4 +1,4 @@
-﻿cff-version: 1.2.0
+cff-version: 1.2.0
 title: "Early lactate trajectories in cardiogenic shock"
 message: "If you use this code, please cite the associated manuscript."
 type: software
@@ -16,7 +16,6 @@ authors:
   - family-names: Shu
     given-names: Pengqin
 license: MIT
-repository-code: "https://github.com/shupengqin/early-lactate-trajectories-cardiogenic-shock"
+repository-code: "TO_BE_ADDED_AFTER_GITHUB_REPOSITORY_IS_CREATED"
 version: 1.0.0
 date-released: 2026-07-01
-

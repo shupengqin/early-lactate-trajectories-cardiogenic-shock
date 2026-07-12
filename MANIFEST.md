@@ -2,9 +2,6 @@
 
 - `.gitignore`
 - `CITATION.cff`
-- `docs/mimic_cardiogenic_shock_lactate_protocol.md`
-- `docs/q2_additional_ami_marker_report.md`
-- `docs/q2_enhancement_report.md`
 - `docs/sicdb_feasibility_report.md`
 - `LICENSE`
 - `README.md`
@@ -16,12 +13,14 @@
 - `scripts/make_table1_and_flow.py`
 - `scripts/make_vif_table.py`
 - `scripts/manuscript_q2_enhancements.py`
+- `scripts/methodology_sensitivity_analyses.py`
 - `scripts/mimic_analysis_qc_and_logistic.py`
 - `scripts/mimic_extended_ml_models.py`
 - `scripts/mimic_initial_qc.py`
 - `scripts/mimic_lactate_trajectory.py`
 - `scripts/mimic_prediction_models.py`
 - `scripts/mimic_trajectory_sensitivity.py`
+- `scripts/prediction_utils.py`
 - `scripts/q2_additional_ami_marker_analyses.py`
 - `sql/eicu_cs_analysis_dataset.sql`
 - `sql/eicu_cs_lactate_cohort.sql`

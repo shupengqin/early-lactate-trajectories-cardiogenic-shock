@@ -6,7 +6,7 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     average_precision_score,
     brier_score_loss,
@@ -16,8 +16,11 @@ from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from prediction_utils import logistic_calibration_metrics, restrict_to_24h_survivors
+
 
 INPUT = Path("outputs/mimic_analysis_dataset_with_trajectory.csv")
+COHORT = Path("outputs/mimic_cs_lactate_24h_cohort.csv")
 OUT_DIR = Path("outputs")
 
 
@@ -42,17 +45,6 @@ FULL_LACTATE_FEATURES = [
     "lactate_clearance_24h",
     "trajectory_group",
 ]
-
-
-def calibration_metrics(y_true, y_prob):
-    eps = 1e-6
-    p = np.clip(y_prob, eps, 1 - eps)
-    logit = np.log(p / (1 - p)).reshape(-1, 1)
-    lr = LinearRegression().fit(logit, y_true)
-    return {
-        "calibration_intercept": float(lr.intercept_),
-        "calibration_slope": float(lr.coef_[0]),
-    }
 
 
 def make_preprocessor(df, features):
@@ -105,13 +97,13 @@ def evaluate_model(df, features, model_name, estimator):
         "auprc": float(average_precision_score(y, prob)),
         "brier": float(brier_score_loss(y, prob)),
     }
-    metrics.update(calibration_metrics(y, prob))
+    metrics.update(logistic_calibration_metrics(y, prob))
     return metrics, prob
 
 
 def main():
     OUT_DIR.mkdir(exist_ok=True)
-    df = pd.read_csv(INPUT)
+    df = restrict_to_24h_survivors(pd.read_csv(INPUT), COHORT)
 
     model_specs = []
     feature_sets = {

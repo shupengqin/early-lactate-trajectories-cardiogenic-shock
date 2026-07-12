@@ -13,6 +13,8 @@ from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from prediction_utils import restrict_to_24h_survivors
+
 ROOT = Path('.')
 OUT = ROOT / 'outputs'
 TABLES = ROOT / 'manuscript_tables'
@@ -215,9 +217,12 @@ def main():
     df = df.merge(ami[['subject_id', 'hadm_id', 'acute_mi_dx']].drop_duplicates(), on=['subject_id', 'hadm_id'], how='left')
     df['acute_mi_cs'] = df['acute_mi_dx'].fillna(0).astype(int)
 
-    subgroup_summary, subgroup_or = subgroup_tables(df)
-    persistent_or = persistent_or_table(df)
-    preds = cv_predict(df, MODEL_FEATURE_SETS)
+    prediction_df = restrict_to_24h_survivors(
+        df, OUT / 'mimic_cs_lactate_24h_cohort.csv'
+    )
+    subgroup_summary, subgroup_or = subgroup_tables(prediction_df)
+    persistent_or = persistent_or_table(prediction_df)
+    preds = cv_predict(prediction_df, MODEL_FEATURE_SETS)
     perf = performance_table(preds)
     comparisons = [
         ('base_plus_trajectory', 'base_plus_initial_and_clearance', 'Trajectory vs initial lactate + clearance'),
@@ -240,7 +245,7 @@ def main():
     report.append('')
     report.append('## 1. AMI-CS and non-AMI-CS subgroup analysis')
     report.append('')
-    report.append('Acute myocardial infarction-related cardiogenic shock (AMI-CS) was defined using acute MI diagnosis codes in the same hospital admission: ICD-9 410.xx, excluding subsequent episode codes ending in 2, or ICD-10 I21/I22. Because eICU-CRD exported analysis data did not contain a reliable MI diagnosis field, this subgroup analysis was performed in the MIMIC-IV discovery cohort.')
+    report.append('Acute myocardial infarction-related cardiogenic shock (AMI-CS) was defined using acute MI diagnosis codes in the same hospital admission: ICD-9 410.xx, excluding subsequent episode codes ending in 2, or ICD-10 I21/I22. The subgroup analysis used the MIMIC-IV 24-hour landmark risk set. Because eICU-CRD exported analysis data did not contain a reliable MI diagnosis field, this subgroup analysis could not be repeated in eICU-CRD.')
     report.append('')
     report.append(markdown_table(subgroup_summary))
     report.append('')
@@ -262,13 +267,13 @@ def main():
     report.append('')
     report.append('## Interpretation for manuscript')
     report.append('')
-    report.append('The mortality gradient across trajectory groups remained present in both AMI-CS and non-AMI-CS subgroups in MIMIC-IV. The trajectory model performed similarly to the initial lactate plus clearance model for AUROC but produced stronger AUPRC than initial lactate plus clearance and persistent hyperlactatemia alone. Adding trajectory group to persistent hyperlactatemia further improved AUROC and AUPRC, supporting the claim that the trajectory phenotype contains information beyond a simple binary high-lactate marker.')
+    report.append('The mortality gradient across trajectory groups remained present in both AMI-CS and non-AMI-CS subgroups in MIMIC-IV. In the 24-hour landmark prediction cohort, trajectory group performed similarly to initial lactate plus clearance and persistent hyperlactatemia. Bootstrap intervals did not show a clear improvement when trajectory group was added to either simpler summary.')
     report.append('')
     (ROOT / 'q2_additional_ami_marker_report.md').write_text('\n'.join(report), encoding='utf-8')
 
     results = {
-        'acute_mi_cs_count': int(df['acute_mi_cs'].sum()),
-        'non_acute_mi_cs_count': int((df['acute_mi_cs'] == 0).sum()),
+        'acute_mi_cs_count': int(prediction_df['acute_mi_cs'].sum()),
+        'non_acute_mi_cs_count': int((prediction_df['acute_mi_cs'] == 0).sum()),
         'outputs': {
             'subgroup_mortality': 'manuscript_tables/table_q2_ami_subgroup_mortality.csv',
             'subgroup_adjusted_or': 'manuscript_tables/table_q2_ami_subgroup_adjusted_or.csv',

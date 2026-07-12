@@ -88,6 +88,7 @@ SELECT
     f.unitdischargestatus,
     CASE WHEN lower(f.unitdischargestatus) = 'expired' THEN 1 ELSE 0 END AS unit_expire_flag,
     f.unitdischargeoffset,
+    f.hospitaldischargeoffset,
     lf.lactate_n_24h,
     lf.initial_lactate_24h,
     lf.last_lactate_24h,
@@ -141,4 +142,3 @@ SELECT
     ROUND(AVG(lactate)::numeric, 2) AS mean_lactate,
     ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lactate)::numeric, 2) AS median_lactate
 FROM public.cs_lactate_24h_long;
-

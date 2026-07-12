@@ -20,6 +20,8 @@ from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from prediction_utils import restrict_to_24h_survivors
+
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUTS = ROOT / "outputs"
@@ -134,13 +136,27 @@ def assign_by_mimic_centroids(features: pd.DataFrame, spec: dict, id_col: str) -
     return out
 
 
-def fit_logit_or(df: pd.DataFrame, group_col: str, covariates: list[str]) -> dict:
-    model_df = df[["hospital_expire_flag", group_col] + covariates].dropna().copy()
+def fit_logit_or(
+    df: pd.DataFrame,
+    group_col: str,
+    covariates: list[str],
+    cluster_col: str | None = None,
+) -> dict:
+    cols = ["hospital_expire_flag", group_col] + covariates
+    if cluster_col is not None:
+        cols.append(cluster_col)
+    model_df = df[cols].dropna().copy()
     dummies = pd.get_dummies(model_df[group_col].astype(int), prefix="traj", drop_first=True, dtype=float)
     x = pd.concat([dummies, model_df[covariates].astype(float)], axis=1)
     x = sm.add_constant(x, has_constant="add")
     y = model_df["hospital_expire_flag"].astype(float)
-    fit = sm.Logit(y, x).fit(disp=False)
+    fit_kwargs = {"disp": False}
+    if cluster_col is not None:
+        fit_kwargs.update(
+            cov_type="cluster",
+            cov_kwds={"groups": model_df[cluster_col]},
+        )
+    fit = sm.Logit(y, x).fit(**fit_kwargs)
     conf = fit.conf_int()
     terms = {}
     for term in dummies.columns:
@@ -388,12 +404,26 @@ def main() -> None:
     eicu_or = fit_logit_or(
         eicu_centroid,
         "trajectory_group",
-        ["age", "apachescore", "acutephysiologyscore", "meanbp", "creatinine", "vent", "vasoactive_24h"],
+        ["age", "apachescore", "meanbp", "creatinine", "vent", "vasoactive_24h"],
+        "hospitalid",
+    )
+    eicu_centroid_landmark = eicu_centroid[
+        eicu_centroid["hospitaldischargeoffset"].gt(24 * 60)
+    ].copy()
+    eicu_landmark_mortality = mortality_table(eicu_centroid_landmark, "trajectory_group")
+    eicu_landmark_or = fit_logit_or(
+        eicu_centroid_landmark,
+        "trajectory_group",
+        ["age", "apachescore", "meanbp", "creatinine", "vent", "vasoactive_24h"],
+        "hospitalid",
     )
     eicu_assign.to_csv(OUTPUTS / "eicu_mimic_centroid_trajectory_assignments.csv", index=False)
     eicu_centroid.to_csv(OUTPUTS / "eicu_analysis_dataset_mimic_centroid_trajectory.csv", index=False)
 
-    preds = cv_predictions(mimic)
+    prediction_mimic = restrict_to_24h_survivors(
+        mimic, OUTPUTS / "mimic_cs_lactate_24h_cohort.csv"
+    )
+    preds = cv_predictions(prediction_mimic)
     preds.to_csv(OUTPUTS / "mimic_q2_cv_predictions.csv", index=False)
     performance_rows = []
     y = preds["hospital_expire_flag"].to_numpy()
@@ -424,6 +454,21 @@ def main() -> None:
             for term, vals in eicu_or["terms"].items()
         ]
     ).to_csv(TABLES / "table_eicu_mimic_centroid_adjusted_or.csv", index=False)
+    eicu_landmark_mortality.to_csv(
+        TABLES / "table_eicu_mimic_centroid_24h_landmark_validation.csv", index=False
+    )
+    pd.DataFrame(
+        [
+            {
+                "term": term,
+                "or": round(vals["or"], 2),
+                "ci95": f"{vals['ci95_low']:.2f}-{vals['ci95_high']:.2f}",
+                "p_value": vals["p"],
+                "model_n": eicu_landmark_or["n_complete_cases"],
+            }
+            for term, vals in eicu_landmark_or["terms"].items()
+        ]
+    ).to_csv(TABLES / "table_eicu_mimic_centroid_24h_landmark_adjusted_or.csv", index=False)
     performance.to_csv(TABLES / "table_q2_prediction_performance.csv", index=False)
     bootstrap.to_csv(TABLES / "table_q2_bootstrap_prediction_deltas.csv", index=False)
     calibration.to_csv(TABLES / "table_q2_calibration_curve_data.csv", index=False)
@@ -437,6 +482,13 @@ def main() -> None:
             "mortality_pct": float(eicu_centroid["hospital_expire_flag"].mean() * 100),
             "mortality": eicu_mortality.to_dict(orient="records"),
             "adjusted_logistic": eicu_or,
+        },
+        "mimic_centroid_24h_landmark_validation": {
+            "definition": "alive and hospitalized 24 hours after ICU admission",
+            "n": int(len(eicu_centroid_landmark)),
+            "deaths_after_landmark": int(eicu_centroid_landmark["hospital_expire_flag"].sum()),
+            "mortality": eicu_landmark_mortality.to_dict(orient="records"),
+            "adjusted_logistic": eicu_landmark_or,
         },
         "prediction_performance": performance.to_dict(orient="records"),
         "bootstrap_deltas": bootstrap.to_dict(orient="records"),
@@ -458,4 +510,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
