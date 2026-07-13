@@ -7,6 +7,7 @@
 - `README.md`
 - `requirements.txt`
 - `scripts/eicu_external_validation.py`
+- `scripts/create_composite_main_figures.py`
 - `scripts/make_journal_ready_tables.py`
 - `scripts/make_manuscript_outputs.py`
 - `scripts/make_supplementary_tables.py`
@@ -21,6 +22,7 @@
 - `scripts/mimic_prediction_models.py`
 - `scripts/mimic_trajectory_sensitivity.py`
 - `scripts/prediction_utils.py`
+- `scripts/promote_foldwise_prediction.py`
 - `scripts/q2_additional_ami_marker_analyses.py`
 - `sql/eicu_cs_analysis_dataset.sql`
 - `sql/eicu_cs_lactate_cohort.sql`
