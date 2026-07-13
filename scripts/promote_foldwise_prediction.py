@@ -159,12 +159,15 @@ def performance_table(predictions: pd.DataFrame) -> pd.DataFrame:
     for label, model in specs:
         auroc = roc_auc_score(y, predictions[model])
         auprc = average_precision_score(y, predictions[model])
+        calibration = logistic_calibration_metrics(y, predictions[model].to_numpy())
         rows.append(
             {
                 "Model": label,
                 "AUROC": round(auroc, 3),
                 "AUPRC": round(auprc, 3),
                 "Brier score": round(brier_score_loss(y, predictions[model]), 3),
+                "Calibration intercept": round(calibration["calibration_intercept"], 3),
+                "Calibration slope": round(calibration["calibration_slope"], 3),
                 "Delta AUROC vs base": round(auroc - base_auroc, 3),
                 "Delta AUPRC vs base": round(auprc - base_auprc, 3),
             }
