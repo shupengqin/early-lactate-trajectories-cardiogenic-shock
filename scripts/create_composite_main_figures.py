@@ -67,7 +67,7 @@ def save_pub(fig: plt.Figure, stem: str) -> None:
         im.convert("RGB").save(base.with_suffix(".tiff"), dpi=(600, 600), compression="tiff_lzw")
 
 
-def panel_label(ax: plt.Axes, label: str, x: float = -0.12) -> None:
+def panel_label(ax: plt.Axes, label: str, x: float = -0.10) -> None:
     ax.text(
         x,
         1.08,
@@ -191,7 +191,7 @@ def figure1() -> None:
         return rect
 
     def header(x, y, w, h, text, color):
-        rect_box(x, y, w, h, text, color, fs=9.2, weight="bold", wrap=44)
+        rect_box(x, y, w, h, "", color, fs=9.2, weight="bold", wrap=44)
         ax.text(
             x + w / 2,
             y + h / 2,
@@ -310,10 +310,10 @@ def figure1() -> None:
         down_arrow(spec["main_x"] + box_w / 2, 0.330, table_y + table_h + 0.020)
         for group, j in zip([1, 2, 3, 4], range(4)):
             label = {
-                1: "G1\nlow-stable",
-                2: "G2\nmoderate-decreasing",
-                3: "G3\nhigh-decreasing",
-                4: "G4\npersistent-high",
+                1: "G1 low-stable",
+                2: "G2 moderate-decreasing",
+                3: "G3 high-decreasing",
+                4: "G4 persistent-high",
             }[group]
             col = j % 2
             row = 1 - j // 2
@@ -327,18 +327,8 @@ def figure1() -> None:
                 ha="center",
                 va="center",
                 fontsize=8,
-                linespacing=1.04,
+                linespacing=1.12,
             )
-
-    ax.text(
-        0.5,
-        0.024,
-        "Trajectory groups were derived from four 6-hour lactate windows during the first 24 hours after ICU admission.",
-        ha="center",
-        va="center",
-        fontsize=8,
-        color="#333333",
-    )
     save_pub(fig, "figure1_study_flow_composite")
 
 
@@ -366,7 +356,7 @@ def plot_trajectories(ax: plt.Axes, df: pd.DataFrame, cohort: str, label: str) -
         )
         label_offset = {1: -0.30, 2: 0.30, 3: 0.0, 4: 0.0}.get(group, 0.0)
         ax.text(
-            x[-1] + 0.65,
+            x[-1] + 0.85,
             y[-1] + label_offset,
             f"G{group} (n={int(row['N'])})",
             color=color,
@@ -378,7 +368,7 @@ def plot_trajectories(ax: plt.Axes, df: pd.DataFrame, cohort: str, label: str) -
     ax.set_xlabel("Hours after ICU admission")
     ax.set_ylabel("Mean lactate (mmol/L)")
     ax.set_xticks(x, ["0-6", "6-12", "12-18", "18-24"])
-    ax.set_xlim(2.2, 28.5)
+    ax.set_xlim(2.2, 30.5)
     ax.set_ylim(0.7, 13.4)
     ax.grid(axis="y", color="#e5e7eb", linewidth=0.6)
 
@@ -443,7 +433,7 @@ def plot_centroid_mortality(ax: plt.Axes, df: pd.DataFrame, label: str) -> None:
     ax.set_xticks(groups, [f"G{i}" for i in groups])
     ax.set_ylim(0, 100)
     ax.set_ylabel("In-hospital mortality (%)")
-    ax.set_title("Fixed-centroid mortality", fontweight="bold", pad=5)
+    ax.set_title("Fixed-centroid mortality", fontweight="bold", pad=5, x=0.60)
     ax.grid(axis="y", color="#e5e7eb", linewidth=0.6)
 
 
@@ -487,8 +477,8 @@ def figure2() -> None:
     centroid_or = pd.read_csv(TABLES / "table_eicu_mimic_centroid_24h_landmark_adjusted_or.csv")
 
     fig = plt.figure(figsize=(7.5, 5.8))
-    fig.subplots_adjust(left=0.11, right=0.98, bottom=0.10, top=0.91)
-    gs = fig.add_gridspec(2, 3, hspace=0.72, wspace=0.82, width_ratios=[1.12, 1.12, 1.0])
+    fig.subplots_adjust(left=0.12, right=0.975, bottom=0.10, top=0.91)
+    gs = fig.add_gridspec(2, 3, hspace=0.72, wspace=0.88, width_ratios=[1.12, 1.12, 1.0])
     ax_a = fig.add_subplot(gs[0, 0])
     ax_b = fig.add_subplot(gs[0, 1], sharey=ax_a)
     ax_c = fig.add_subplot(gs[0, 2])
@@ -617,7 +607,7 @@ def figure4() -> None:
 
 
 def mortality_panel(ax: plt.Axes, df: pd.DataFrame, title: str, label: str) -> None:
-    panel_label(ax, label, x=-0.16)
+    panel_label(ax, label, x=-0.12)
     groups = df["trajectory_group"].astype(int).to_numpy()
     vals = df["mortality_pct"].astype(float).to_numpy()
     ax.bar(groups, vals, color=[group_color(g) for g in groups], width=0.65)
@@ -638,7 +628,7 @@ def mortality_panel(ax: plt.Axes, df: pd.DataFrame, title: str, label: str) -> N
 
 
 def ami_mortality(ax: plt.Axes, df: pd.DataFrame, label: str) -> None:
-    panel_label(ax, label, x=-0.16)
+    panel_label(ax, label, x=-0.12)
     d = df[df["subgroup_definition"].eq("AMI-CS by acute MI ICD")].copy()
     d = d[d["subgroup"].str.contains("trajectory group", case=False, na=False)]
     d["ami"] = d["subgroup"].str.extract(r"^(Yes|No):")
@@ -661,7 +651,7 @@ def ami_mortality(ax: plt.Axes, df: pd.DataFrame, label: str) -> None:
 
 
 def ami_forest(ax: plt.Axes, df: pd.DataFrame, label: str) -> None:
-    panel_label(ax, label, x=-0.16)
+    panel_label(ax, label, x=-0.12)
     d = df[df["subgroup_definition"].eq("AMI-CS by acute MI ICD")].copy()
     d["group"] = d["term"].str.extract(r"traj_(\d+)").astype(int)
     d = d.sort_values(["subgroup", "group"], ascending=[True, False])
@@ -692,7 +682,8 @@ def ami_forest(ax: plt.Axes, df: pd.DataFrame, label: str) -> None:
     ax.axvline(1, color="#555555", linestyle="--", linewidth=0.8)
     ax.set_xscale("log")
     ax.set_xlim(0.45, 55)
-    ax.set_yticks(y, [r["label"] for r in rows], fontsize=8)
+    ax.set_yticks(y, [r["label"] for r in rows], fontsize=7.5)
+    ax.tick_params(axis="y", pad=2)
     ax.set_xlabel("Adjusted odds ratio")
     ax.set_title("AMI-CS adjusted ORs", fontweight="bold", pad=5)
     ax.grid(axis="x", color="#e5e7eb", linewidth=0.6, which="both")
@@ -705,7 +696,8 @@ def figure5() -> None:
     ami_or = pd.read_csv(TABLES / "table_q2_ami_subgroup_adjusted_or.csv")
 
     fig = plt.figure(figsize=(7.5, 5.5))
-    gs = fig.add_gridspec(2, 3, hspace=0.58, wspace=0.78)
+    fig.subplots_adjust(left=0.11, right=0.98, bottom=0.10, top=0.91)
+    gs = fig.add_gridspec(2, 3, hspace=0.62, wspace=0.92)
     axes = [fig.add_subplot(gs[i, j]) for i in range(2) for j in range(3)]
 
     mortality_panel(axes[0], sens[sens["scenario"].eq("k3_min2")], "K = 3 solution", "A")
