@@ -175,33 +175,75 @@ def make_other_tables():
     ], ignore_index=True)
     traj.to_csv(OUT / 'table2_trajectory_groups_journal.csv', index=False)
 
-    reg = pd.read_csv(OUT / 'table_adjusted_trajectory_or_mimic_eicu.csv')
-    reg_out = pd.DataFrame({
-        'Comparison': reg['comparison'],
-        'MIMIC-IV adjusted OR (95% CI)': reg.apply(lambda r: f"{r['mimic_or']:.2f} ({r['mimic_ci95']})", axis=1),
-        'MIMIC-IV P value': reg['mimic_p'].map(fmt_p),
-        'eICU-CRD adjusted OR (95% CI)': reg.apply(lambda r: f"{r['eicu_or']:.2f} ({r['eicu_ci95']})", axis=1),
-        'eICU-CRD P value': reg['eicu_p'].map(fmt_p),
-    })
+    landmark = pd.read_csv(OUT / 'table_primary_24h_landmark_associations.csv')
+    absolute = pd.read_csv(OUT / 'table_primary_adjusted_absolute_effects.csv')
+
+    def effect_table(cohort):
+        counts = landmark[landmark['cohort'].eq(cohort)][
+            ['trajectory_group', 'n', 'deaths', 'mortality_pct']
+        ]
+        effects = absolute[absolute['cohort'].eq(cohort)].copy()
+        merged = counts.merge(effects, on='trajectory_group', suffixes=('_landmark', '_model'))
+        return pd.DataFrame({
+            'Group': merged['trajectory_group'].map(lambda x: f'Group {int(x)}'),
+            'N at landmark': merged['n_landmark'].astype(int),
+            'Deaths': merged['deaths_landmark'].astype(int),
+            'Model included, n': merged['n_model'].astype(int),
+            'Excluded for missing covariates, n': (merged['n_landmark'] - merged['n_model']).astype(int),
+            'Adjusted mortality, % (95% CI)': merged.apply(
+                lambda r: f"{r['adjusted_mortality_pct']:.1f} ({r['adjusted_mortality_ci95_low']:.1f}-{r['adjusted_mortality_ci95_high']:.1f})",
+                axis=1,
+            ),
+            'Risk difference per 100 (95% CI)': merged.apply(
+                lambda r: 'Reference' if int(r['trajectory_group']) == 1 else
+                f"{r['adjusted_risk_difference_per_100']:.1f} ({r['risk_difference_ci95_low']:.1f}-{r['risk_difference_ci95_high']:.1f})",
+                axis=1,
+            ),
+            'Adjusted RR (95% CI)': merged.apply(
+                lambda r: 'Reference' if int(r['trajectory_group']) == 1 else
+                f"{r['modified_poisson_rr']:.2f} ({r['rr_ci95_low']:.2f}-{r['rr_ci95_high']:.2f})",
+                axis=1,
+            ),
+            'Adjusted OR (95% CI)': merged.apply(
+                lambda r: 'Reference' if int(r['trajectory_group']) == 1 else
+                f"{r['adjusted_or']:.2f} ({r['or_ci95_low']:.2f}-{r['or_ci95_high']:.2f})",
+                axis=1,
+            ),
+            'P value': merged.apply(
+                lambda r: '' if int(r['trajectory_group']) == 1 else fmt_p(r['or_p_value']),
+                axis=1,
+            ),
+        })
+
+    reg_out = effect_table('MIMIC-IV')
     reg_out.to_csv(OUT / 'table3_adjusted_or_journal.csv', index=False)
 
-    eicu_landmark = pd.read_csv(OUT / 'table_primary_24h_landmark_associations.csv')
-    eicu_landmark = eicu_landmark[eicu_landmark['cohort'].eq('eICU-CRD')].copy()
-    table5 = pd.DataFrame({
-        'Group': eicu_landmark['trajectory_group'].map(lambda x: f'Group {int(x)}'),
-        'N at 24-hour landmark': eicu_landmark['n'].astype(int),
-        'Subsequent deaths': eicu_landmark['deaths'].astype(int),
-        'Subsequent mortality, %': eicu_landmark['mortality_pct'].map(lambda x: f'{x:.2f}'),
-        'Adjusted OR (95% CI)': eicu_landmark.apply(
-            lambda r: 'Reference' if int(r['trajectory_group']) == 1
-            else f"{r['adjusted_or']:.2f} ({r['ci95_low']:.2f}-{r['ci95_high']:.2f})",
-            axis=1,
-        ),
-        'P value': eicu_landmark.apply(
-            lambda r: '' if int(r['trajectory_group']) == 1 else fmt_p(r['p_value']), axis=1
-        ),
-    })
+    table5 = effect_table('eICU-CRD')
     table5.to_csv(OUT / 'table5_eicu_24h_landmark_validation_journal.csv', index=False)
+    supplementary_absolute = pd.concat(
+        [
+            reg_out.assign(Cohort='MIMIC-IV'),
+            table5.assign(Cohort='eICU-CRD'),
+        ],
+        ignore_index=True,
+    )
+    supplementary_absolute = supplementary_absolute[
+        [
+            'Cohort',
+            'Group',
+            'N at landmark',
+            'Deaths',
+            'Model included, n',
+            'Excluded for missing covariates, n',
+            'Adjusted mortality, % (95% CI)',
+            'Risk difference per 100 (95% CI)',
+            'Adjusted RR (95% CI)',
+            'Adjusted OR (95% CI)',
+        ]
+    ]
+    supplementary_absolute.to_csv(
+        OUT / 'table_supplementary_adjusted_effects_formatted.csv', index=False
+    )
 
     pred = pd.read_csv(OUT / 'table_prediction_performance.csv')
     labels = {
