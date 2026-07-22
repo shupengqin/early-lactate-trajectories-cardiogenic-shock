@@ -245,24 +245,32 @@ def make_other_tables():
         OUT / 'table_supplementary_adjusted_effects_formatted.csv', index=False
     )
 
-    pred = pd.read_csv(OUT / 'table_prediction_performance.csv')
-    labels = {
-        'logistic_clinical_base': 'Clinical base model',
-        'logistic_base_plus_initial_lactate': 'Clinical base + initial lactate',
-        'logistic_base_plus_lactate_clearance': 'Clinical base + initial lactate + clearance',
-        'logistic_base_plus_trajectory': 'Clinical base + trajectory group',
-        'logistic_base_plus_full_lactate': 'Clinical base + full lactate dynamics',
-    }
-    order = list(labels)
-    pred = pred.set_index('model').loc[order].reset_index()
-    pred_out = pd.DataFrame({
-        'Model': pred['model'].map(labels),
-        'AUROC': pred['auroc'].map(lambda x: f'{x:.3f}'),
-        'AUPRC': pred['auprc'].map(lambda x: f'{x:.3f}'),
-        'Brier score': pred['brier'].map(lambda x: f'{x:.3f}'),
-        'Delta AUROC vs base': pred['delta_auroc_vs_base'].map(lambda x: f'{x:.3f}'),
-        'Delta AUPRC vs base': pred['delta_auprc_vs_base'].map(lambda x: f'{x:.3f}'),
-    })
+    # The foldwise table is the primary prediction analysis. The older
+    # table_prediction_performance.csv contains global trajectory labels and
+    # is retained only as a sensitivity analysis.
+    pred = pd.read_csv(OUT / 'table_q2_prediction_performance.csv')
+    order = [
+        'Clinical base model',
+        'Clinical base + initial lactate',
+        'Clinical base + initial lactate + clearance',
+        'Clinical base + trajectory group',
+        'Clinical base + full lactate dynamics',
+    ]
+    pred = pred.set_index('Model').loc[order].reset_index()
+    metric_columns = [
+        'AUROC',
+        'AUPRC',
+        'Brier score',
+        'Calibration intercept',
+        'Calibration slope',
+        'Delta AUROC vs base',
+        'Delta AUPRC vs base',
+    ]
+    pred_out = pred[['Model', *metric_columns]].copy()
+    for column in metric_columns:
+        pred_out[column] = pd.to_numeric(pred_out[column], errors='raise').map(
+            lambda x: f'{x:.3f}'
+        )
     pred_out.to_csv(OUT / 'table4_prediction_performance_journal.csv', index=False)
 
     boot = pd.read_csv(OUT / 'table_q2_bootstrap_prediction_deltas.csv')
@@ -279,9 +287,9 @@ def main():
     md = []
     md.append('# Journal-ready tables')
     md.append('')
-    md.append('Continuous variables are shown as median [interquartile range], and categorical variables as n (%). P values for continuous variables were calculated using Kruskal-Wallis tests; categorical variables used chi-square tests. Max SMD is the maximum pairwise standardised mean difference across trajectory groups.')
+    md.append('Continuous variables are shown as median [interquartile range], and categorical variables as n (%). P values for continuous variables were calculated using Kruskal-Wallis tests; categorical variables used chi-square tests. Max SMD is the maximum pairwise standardized mean difference across trajectory groups.')
     md.append('')
-    md.append('## Table 1. Baseline characteristics in MIMIC-IV by lactate trajectory group')
+    md.append('## Table 1. Clinical characteristics in MIMIC-IV by lactate trajectory group')
     md.append(markdown_table(table1))
     md.append('')
     md.append('## Table 2. Lactate trajectory groups in MIMIC-IV and eICU-CRD')

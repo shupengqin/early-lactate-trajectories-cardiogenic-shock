@@ -16,7 +16,7 @@ Users must complete all required training and data use agreements before accessi
 ## Repository structure
 
 ```text
-scripts/   Python scripts for cohort processing, trajectory modelling, prediction, validation, tables, and figures
+scripts/   Python scripts for cohort processing, trajectory modeling, prediction, validation, tables, and figures
 sql/       SQL scripts for cohort construction and lactate extraction
 docs/      Protocol and supplementary analysis reports
 ```
@@ -44,9 +44,9 @@ pip install -r requirements.txt
 1. Load MIMIC-IV and eICU-CRD locally according to PhysioNet documentation.
 2. Update database connection parameters and file paths for the local environment.
 3. Run the SQL scripts in `sql/` to create cohort and lactate extraction tables.
-4. Run the cohort and trajectory scripts, followed by the association, prediction, external-validation, and marker-comparison scripts.
+4. Run the cohort and trajectory scripts, followed by the association, prediction, transportability, and marker-comparison scripts.
 5. Run `scripts/methodology_sensitivity_analyses.py` to construct the 24-hour landmark analyses, measurement-process audits, stability analyses, and initial foldwise trajectory predictions.
-6. Run `scripts/promote_foldwise_prediction.py` to make foldwise trajectory fitting the primary prediction pipeline and regenerate its bootstrap intervals, calibration data, decision curves, simple-marker comparisons, and prespecified algorithm comparisons.
+6. Run `scripts/promote_foldwise_prediction.py` to make foldwise trajectory fitting the primary prediction pipeline and regenerate its bootstrap intervals, calibration data, decision curves, simple-marker comparisons, and predefined algorithm comparisons.
 7. Run `scripts/reviewer_hardening_analyses.py` to reproduce the repeated-cross-validation analysis, complete-observed-window sensitivity analysis, selection comparison, cluster-assignment diagnostics, and adjusted absolute and relative mortality effects.
 8. Run the table-generation scripts and then `scripts/create_composite_main_figures.py` to reproduce the five final composite figures.
 9. Keep generated patient-level intermediate files under the applicable PhysioNet data use agreements; do not commit them to a public repository.

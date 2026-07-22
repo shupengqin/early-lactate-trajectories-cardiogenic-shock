@@ -249,7 +249,9 @@ def landmark_and_early_death_tables(mimic: pd.DataFrame, cohort: pd.DataFrame) -
         base["dischtime_dt"] - base["intime_dt"]
     ).dt.total_seconds() / 3600
     base["death_within_24h"] = (
-        (base["hospital_expire_flag"] == 1) & (base["death_hours_after_icu"] <= 24)
+        (base["hospital_expire_flag"] == 1)
+        & base["death_hours_after_icu"].gt(0)
+        & base["death_hours_after_icu"].le(24)
     )
     base["at_risk_at_24h"] = base["discharge_hours_after_icu"].gt(24)
     base["lactate_category"] = np.select(
