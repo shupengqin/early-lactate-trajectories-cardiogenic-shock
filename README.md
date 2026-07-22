@@ -48,8 +48,9 @@ pip install -r requirements.txt
 5. Run `scripts/methodology_sensitivity_analyses.py` to construct the 24-hour landmark analyses, measurement-process audits, stability analyses, and initial foldwise trajectory predictions.
 6. Run `scripts/promote_foldwise_prediction.py` to make foldwise trajectory fitting the primary prediction pipeline and regenerate its bootstrap intervals, calibration data, decision curves, simple-marker comparisons, and predefined algorithm comparisons.
 7. Run `scripts/reviewer_hardening_analyses.py` to reproduce the repeated-cross-validation analysis, complete-observed-window sensitivity analysis, selection comparison, cluster-assignment diagnostics, and adjusted absolute and relative mortality effects.
-8. Run the table-generation scripts and then `scripts/create_composite_main_figures.py` to reproduce the five final composite figures.
-9. Keep generated patient-level intermediate files under the applicable PhysioNet data use agreements; do not commit them to a public repository.
+8. Run `scripts/round2_reviewer_analyses.py` to reproduce the direct simple-marker comparisons, final-window-observed and no-edge-filling analyses, extended cluster-selection metrics, fixed-centroid external estimates, Firth sensitivity analysis, and assignment-concordance audit.
+9. Run the table-generation scripts and then `scripts/create_composite_main_figures.py` to reproduce the five final composite figures.
+10. Keep generated patient-level intermediate files under the applicable PhysioNet data use agreements; do not commit them to a public repository.
 
 The primary association and prediction analyses use a 24-hour landmark and include patients alive and still hospitalized at that time. For every prediction model containing trajectory group, lactate-window filling, scaling, K-means fitting, trajectory assignment, and model fitting are repeated within each cross-validation training fold. The globally assigned trajectory-label analysis is retained only as a sensitivity analysis. eICU-CRD models explicitly use APACHE IVa and hospital-clustered standard errors.
 

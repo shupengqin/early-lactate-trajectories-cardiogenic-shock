@@ -17,7 +17,13 @@ BIN_LABELS = ["lact_0_6h", "lact_6_12h", "lact_12_18h", "lact_18_24h"]
 
 
 def make_features(long_df):
-    df = long_df.copy()
+    df = (
+        long_df.groupby(["patientunitstayid", "lactate_hour"], as_index=False)[
+            "lactate"
+        ]
+        .median()
+        .copy()
+    )
     df["time_bin"] = pd.cut(
         df["lactate_hour"],
         bins=[0, 6, 12, 18, 24],

@@ -24,7 +24,11 @@ BIN_MIDPOINTS = np.array([3.0, 9.0, 15.0, 21.0])
 
 
 def make_feature_matrix(long_df):
-    df = long_df.copy()
+    df = (
+        long_df.groupby(["stay_id", "lactate_hour"], as_index=False)["lactate"]
+        .median()
+        .copy()
+    )
     df["time_bin"] = pd.cut(
         df["lactate_hour"],
         bins=[0, 6, 12, 18, 24],

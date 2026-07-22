@@ -48,7 +48,11 @@ BASE_COVARS_NO_TREAT = [
 
 
 def time_binned_wide(long_df: pd.DataFrame, id_col: str) -> pd.DataFrame:
-    df = long_df.copy()
+    df = (
+        long_df.groupby([id_col, "lactate_hour"], as_index=False)["lactate"]
+        .median()
+        .copy()
+    )
     df["time_bin"] = pd.cut(
         df["lactate_hour"],
         bins=[0, 6, 12, 18, 24],

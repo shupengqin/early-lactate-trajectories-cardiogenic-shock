@@ -56,7 +56,11 @@ FEATURE_SETS = {
 
 
 def make_mimic_features(long_df: pd.DataFrame) -> pd.DataFrame:
-    df = long_df.copy()
+    df = (
+        long_df.groupby(["stay_id", "lactate_hour"], as_index=False)["lactate"]
+        .median()
+        .copy()
+    )
     df["time_bin"] = pd.cut(
         df["lactate_hour"],
         bins=[0, 6, 12, 18, 24],
@@ -78,7 +82,13 @@ def make_mimic_features(long_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def make_eicu_features(long_df: pd.DataFrame, fill_values: pd.Series) -> pd.DataFrame:
-    df = long_df.copy()
+    df = (
+        long_df.groupby(["patientunitstayid", "lactate_hour"], as_index=False)[
+            "lactate"
+        ]
+        .median()
+        .copy()
+    )
     df["time_bin"] = pd.cut(
         df["lactate_hour"],
         bins=[0, 6, 12, 18, 24],

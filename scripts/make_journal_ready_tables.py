@@ -218,12 +218,45 @@ def make_other_tables():
     reg_out = effect_table('MIMIC-IV')
     reg_out.to_csv(OUT / 'table3_adjusted_or_journal.csv', index=False)
 
-    table5 = effect_table('eICU-CRD')
-    table5.to_csv(OUT / 'table5_eicu_24h_landmark_validation_journal.csv', index=False)
+    table5 = pd.read_csv(OUT / 'table5_eicu_fixed_centroid_transportability_journal.csv')
+    fixed_external = pd.read_csv(
+        OUT / 'table_eicu_mimic_centroid_24h_landmark_adjusted_associations_raw.csv'
+    )
+    fixed_external = fixed_external[
+        fixed_external['assignment_method'].eq('Fixed MIMIC-IV centroids (primary)')
+    ].copy()
+    fixed_supplementary = pd.DataFrame({
+        'Group': fixed_external['trajectory_group'].map(lambda x: f'Group {int(x)}'),
+        'N at landmark': fixed_external['n_landmark'].astype(int),
+        'Deaths': fixed_external['deaths_landmark'].astype(int),
+        'Model included, n': fixed_external['n'].astype(int),
+        'Excluded for missing covariates, n': (
+            fixed_external['n_landmark'] - fixed_external['n']
+        ).astype(int),
+        'Adjusted mortality, % (95% CI)': fixed_external.apply(
+            lambda r: f"{r['adjusted_mortality_pct']:.1f} ({r['adjusted_mortality_ci95_low']:.1f}-{r['adjusted_mortality_ci95_high']:.1f})",
+            axis=1,
+        ),
+        'Risk difference per 100 (95% CI)': fixed_external.apply(
+            lambda r: 'Reference' if int(r['trajectory_group']) == 1 else
+            f"{r['adjusted_risk_difference_per_100']:.1f} ({r['risk_difference_ci95_low']:.1f}-{r['risk_difference_ci95_high']:.1f})",
+            axis=1,
+        ),
+        'Adjusted RR (95% CI)': fixed_external.apply(
+            lambda r: 'Reference' if int(r['trajectory_group']) == 1 else
+            f"{r['modified_poisson_rr']:.2f} ({r['rr_ci95_low']:.2f}-{r['rr_ci95_high']:.2f})",
+            axis=1,
+        ),
+        'Adjusted OR (95% CI)': fixed_external.apply(
+            lambda r: 'Reference' if int(r['trajectory_group']) == 1 else
+            f"{r['adjusted_or']:.2f} ({r['or_ci95_low']:.2f}-{r['or_ci95_high']:.2f})",
+            axis=1,
+        ),
+    })
     supplementary_absolute = pd.concat(
         [
             reg_out.assign(Cohort='MIMIC-IV'),
-            table5.assign(Cohort='eICU-CRD'),
+            fixed_supplementary.assign(Cohort='eICU-CRD fixed MIMIC-IV centroids'),
         ],
         ignore_index=True,
     )

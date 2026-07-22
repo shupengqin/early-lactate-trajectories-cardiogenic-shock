@@ -19,7 +19,11 @@ BIN_LABELS = ["lact_0_6h", "lact_6_12h", "lact_12_18h", "lact_18_24h"]
 def build_features(long_df, min_lactate_count=2):
     counts = long_df.groupby("stay_id").size()
     keep = counts[counts >= min_lactate_count].index
-    df = long_df[long_df["stay_id"].isin(keep)].copy()
+    df = (
+        long_df[long_df["stay_id"].isin(keep)]
+        .groupby(["stay_id", "lactate_hour"], as_index=False)["lactate"]
+        .median()
+    )
     df["time_bin"] = pd.cut(
         df["lactate_hour"],
         bins=[0, 6, 12, 18, 24],
