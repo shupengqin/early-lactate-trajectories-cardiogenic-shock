@@ -50,6 +50,25 @@ EICU_COVARS = [
 ]
 
 
+def median_impute_eicu_covariates(
+    frame: pd.DataFrame,
+) -> tuple[pd.DataFrame, list[str]]:
+    imputed = frame.copy()
+    missing_indicators: list[str] = []
+    for variable in ["apachescore", "meanbp", "creatinine", "vent"]:
+        if not imputed[variable].isna().any():
+            continue
+        if variable in ["apachescore", "meanbp"]:
+            indicator = f"{variable}_missing"
+            imputed[indicator] = imputed[variable].isna().astype(int)
+            missing_indicators.append(indicator)
+        imputed[variable] = imputed[variable].fillna(imputed[variable].median())
+    covariates = EICU_COVARS + missing_indicators
+    if imputed[covariates].isna().any().any():
+        raise RuntimeError("eICU median imputation left missing model covariates")
+    return imputed, covariates
+
+
 def deduplicate_long(frame: pd.DataFrame, id_col: str) -> pd.DataFrame:
     return (
         frame.groupby([id_col, "lactate_hour"], as_index=False)["lactate"]
@@ -335,9 +354,84 @@ def observation_sensitivity_and_gap_audit() -> None:
             no_edge_fill=True,
         )
     )
+    filled = fill_lactate_windows(wide)
+    log_windows = np.log1p(filled[BIN_LABELS])
+    centered = log_windows.sub(log_windows["lact_0_6h"], axis=0)[BIN_LABELS[1:]]
+    centered_scaled = StandardScaler().fit_transform(centered)
+    centered_model = KMeans(
+        n_clusters=4, random_state=RANDOM_SEED, n_init=50
+    ).fit(centered_scaled)
+    centered_labels_raw = pd.Series(centered_model.labels_, index=centered.index)
+    centered_final_change = centered.assign(raw_group=centered_labels_raw).groupby(
+        "raw_group"
+    )["lact_18_24h"].mean()
+    centered_order = {
+        raw_group: rank + 1
+        for rank, raw_group in enumerate(centered_final_change.sort_values().index)
+    }
+    centered_labels = centered_labels_raw.map(centered_order).astype(int)
+    centered_analysis = mimic.copy()
+    centered_analysis["shape_group"] = centered_analysis["stay_id"].map(
+        centered_labels.to_dict()
+    ).astype(int)
+    centered_analysis = restrict_to_24h_survivors(
+        centered_analysis, OUTPUTS / "mimic_cs_lactate_24h_cohort.csv"
+    )
+    centered_analysis["log_initial_lactate_24h"] = np.log1p(
+        centered_analysis["initial_lactate_24h"]
+    )
+    centered_estimates = {
+        row["term"]: row
+        for row in fit_logit_terms(
+            centered_analysis,
+            "shape_group",
+            BASE_COVARS + ["log_initial_lactate_24h"],
+        )
+    }
+    centered_model_n = next(iter(centered_estimates.values()))["n_complete"]
+    for group, subset in centered_analysis.groupby("shape_group"):
+        group = int(group)
+        estimate = centered_estimates.get(f"traj_{group}")
+        rows.append(
+            {
+                "scenario": "k4_initial_centered_log_shape_landmark",
+                "k": 4,
+                "min_lactate_count": 2,
+                "trajectory_group": group,
+                "n": len(subset),
+                "deaths": int(subset["hospital_expire_flag"].sum()),
+                "mortality_pct": 100 * subset["hospital_expire_flag"].mean(),
+                "initial_lactate_median": subset["initial_lactate_24h"].median(),
+                "last_lactate_median": subset["last_lactate_24h"].median(),
+                "peak_lactate_median": subset["peak_lactate_24h"].median(),
+                "adjusted_or_vs_group1": estimate["or"] if estimate else "reference",
+                "ci95": (
+                    f"{estimate['ci95_low']:.2f}-{estimate['ci95_high']:.2f}"
+                    if estimate
+                    else "reference"
+                ),
+                "p_value": estimate["p_value"] if estimate else "reference",
+                "model_n": centered_model_n,
+            }
+        )
+    centered_output = centered_analysis[
+        ["stay_id", "shape_group", "hospital_expire_flag"]
+    ].merge(
+        centered.reset_index(),
+        on="stay_id",
+        how="left",
+        validate="one_to_one",
+    )
+    centered_output.to_csv(
+        OUTPUTS / "mimic_initial_centered_shape_assignments.csv", index=False
+    )
     sensitivity_path = TABLES / "table_supplementary_sensitivity_trajectory.csv"
     sensitivity = pd.read_csv(sensitivity_path)
-    sensitivity = sensitivity[~sensitivity["scenario"].str.startswith("k4_round2_", na=False)]
+    sensitivity = sensitivity[
+        ~sensitivity["scenario"].str.startswith(
+            ("k4_round2_", "k4_initial_centered_"), na=False
+        )
+    ]
     sensitivity = pd.concat([sensitivity, pd.DataFrame(rows)], ignore_index=True)
     sensitivity.to_csv(sensitivity_path, index=False)
 
@@ -564,12 +658,38 @@ def external_transportability() -> None:
         EICU_COVARS,
         cluster_col="hospitalid",
     )
+    fixed_imputed, fixed_imputed_covars = median_impute_eicu_covariates(
+        fixed_landmark
+    )
+    fixed_imputed_effects = adjusted_absolute_effects(
+        "eICU-CRD fixed MIMIC-IV centroids, median-imputation sensitivity",
+        fixed_imputed,
+        fixed_imputed_covars,
+        cluster_col="hospitalid",
+    )
     fixed_firth = firth_group_estimates(fixed_landmark)
     reclustered_firth = firth_group_estimates(reclustered_landmark)
+
+    no_firth = pd.DataFrame(
+        {
+            "trajectory_group": [2, 3, 4],
+            "firth_or": [np.nan] * 3,
+            "firth_ci95_low": [np.nan] * 3,
+            "firth_ci95_high": [np.nan] * 3,
+            "firth_p_value": [np.nan] * 3,
+            "firth_model_n": [np.nan] * 3,
+        }
+    )
 
     combined = []
     for method, full_frame, effects, firth in [
         ("Fixed MIMIC-IV centroids (primary)", fixed_landmark, fixed_effects, fixed_firth),
+        (
+            "Fixed MIMIC-IV centroids (median-imputation sensitivity)",
+            fixed_landmark,
+            fixed_imputed_effects,
+            no_firth,
+        ),
         ("eICU re-clustering (sensitivity)", reclustered_landmark, reclustered_effects, reclustered_firth),
     ]:
         counts = (
@@ -619,9 +739,15 @@ def external_transportability() -> None:
                 axis=1,
             ),
             "Firth OR (95% CI)": associations.apply(
-                lambda row: "Reference"
-                if int(row["trajectory_group"]) == 1
-                else f"{row['firth_or']:.2f} ({row['firth_ci95_low']:.2f}-{row['firth_ci95_high']:.2f})",
+                lambda row: (
+                    "Reference"
+                    if int(row["trajectory_group"]) == 1
+                    else (
+                        f"{row['firth_or']:.2f} ({row['firth_ci95_low']:.2f}-{row['firth_ci95_high']:.2f})"
+                        if pd.notna(row["firth_or"])
+                        else "Not estimated"
+                    )
+                ),
                 axis=1,
             ),
         }

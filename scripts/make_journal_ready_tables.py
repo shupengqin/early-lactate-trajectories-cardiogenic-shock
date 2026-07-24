@@ -2,7 +2,6 @@
 import math
 import pandas as pd
 import numpy as np
-from scipy import stats
 
 ROOT = Path('.')
 OUT = ROOT / 'manuscript_tables'
@@ -121,33 +120,22 @@ def make_table1():
     df = pd.read_csv(DATA)
     groups = sorted(df['trajectory_group'].dropna().astype(int).unique())
     rows = []
-    rows.append({'Characteristic': 'N', 'Overall': str(len(df)), **{f'Group {g}': str(int((df.trajectory_group == g).sum())) for g in groups}, 'P value': '', 'Max SMD': ''})
+    rows.append({'Characteristic': 'N', 'Overall': str(len(df)), **{f'Group {g}': str(int((df.trajectory_group == g).sum())) for g in groups}, 'Max SMD': ''})
 
     for col, label in CONTINUOUS:
-        samples = [pd.to_numeric(df.loc[df.trajectory_group == g, col], errors='coerce').dropna() for g in groups]
-        valid_samples = [s for s in samples if len(s) > 0]
-        p = stats.kruskal(*valid_samples).pvalue if len(valid_samples) >= 2 else np.nan
-        row = {'Characteristic': label, 'Overall': fmt_cont(df[col]), 'P value': fmt_p(p), 'Max SMD': fmt_float(max_pairwise_smd_cont(df, col, groups))}
+        row = {'Characteristic': label, 'Overall': fmt_cont(df[col]), 'Max SMD': fmt_float(max_pairwise_smd_cont(df, col, groups))}
         for g in groups:
             row[f'Group {g}'] = fmt_cont(df.loc[df.trajectory_group == g, col])
         rows.append(row)
 
     for col, label, positive in CATEGORICAL:
-        contingency = []
-        for g in groups:
-            s = df.loc[df.trajectory_group == g, col].dropna()
-            contingency.append([(s == positive).sum(), (s != positive).sum()])
-        try:
-            p = stats.chi2_contingency(contingency).pvalue
-        except Exception:
-            p = np.nan
-        row = {'Characteristic': label, 'Overall': fmt_cat(df[col], positive), 'P value': fmt_p(p), 'Max SMD': fmt_float(max_pairwise_smd_cat(df, col, positive, groups))}
+        row = {'Characteristic': label, 'Overall': fmt_cat(df[col], positive), 'Max SMD': fmt_float(max_pairwise_smd_cat(df, col, positive, groups))}
         for g in groups:
             row[f'Group {g}'] = fmt_cat(df.loc[df.trajectory_group == g, col], positive)
         rows.append(row)
 
     out = pd.DataFrame(rows)
-    out = out[['Characteristic', 'Overall', 'Group 1', 'Group 2', 'Group 3', 'Group 4', 'P value', 'Max SMD']]
+    out = out[['Characteristic', 'Overall', 'Group 1', 'Group 2', 'Group 3', 'Group 4', 'Max SMD']]
     out.to_csv(OUT / 'table1_mimic_baseline_by_trajectory_journal.csv', index=False)
     return out
 
@@ -320,7 +308,7 @@ def main():
     md = []
     md.append('# Journal-ready tables')
     md.append('')
-    md.append('Continuous variables are shown as median [interquartile range], and categorical variables as n (%). P values for continuous variables were calculated using Kruskal-Wallis tests; categorical variables used chi-square tests. Max SMD is the maximum pairwise standardized mean difference across trajectory groups.')
+    md.append('Continuous variables are shown as median [interquartile range], and categorical variables as n (%). Max SMD is the maximum pairwise standardized mean difference across trajectory groups.')
     md.append('')
     md.append('## Table 1. Clinical characteristics in MIMIC-IV by lactate trajectory group')
     md.append(markdown_table(table1))
